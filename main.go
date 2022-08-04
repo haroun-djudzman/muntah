@@ -5,6 +5,9 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/haroun-djudzman/muntah/grpc/server"
 )
 
 type mulut struct {
@@ -12,9 +15,13 @@ type mulut struct {
 }
 
 func (m *mulut) muntah(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Connection", "close")
+
 	params := r.URL.Query()
 	indexParam := params.Get("index")
 	index, _ := strconv.Atoi(indexParam)
+
+	w.WriteHeader(http.StatusOK)
 
 	fmt.Fprintf(w, "%s", m.muntahSize[index-1])
 }
@@ -34,6 +41,21 @@ func main() {
 		muntahSize: muntah[:],
 	}
 
-	http.HandleFunc("/", mulut.muntah)
-	http.ListenAndServe(":6666", nil)
+	// set up server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", mulut.muntah)
+
+	srv := &http.Server{
+
+		Addr:         ":6666",
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		Handler:      mux,
+	}
+
+	srv.SetKeepAlivesEnabled(false)
+
+	go server.StartServer()
+
+	srv.ListenAndServe()
 }
